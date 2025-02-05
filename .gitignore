@@ -1,6 +1,7 @@
 # Gradle directories
 .gradle/
 **/build/
+**/resources/
 *.bin
 *.lock
 *.class
