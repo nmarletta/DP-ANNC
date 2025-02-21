@@ -1,29 +1,280 @@
 package dpannc;
 
-public interface Vector<T extends Number> {
-    int getDimensions();
+import java.util.Random;
 
-    Vector<T> randomGaussian();
+public class Vector {
+    private String label;
+    private float[] components;
+    private int nextEmpty;
 
-    void setNext(T value);
+    /**
+     * Constructs a vector with the given components.
+     *
+     * @param v the array of components to initialize the vector with.
+     */
+    public Vector(float[] v) {
+        this.components = v.clone();
+        this.nextEmpty = components.length;
+    }
 
-    T getC(int index);
+    /**
+     * Constructs a vector with the specified dimension, initialized to zero.
+     *
+     * @param d the number of dimensions of the vector.
+     */
+    public Vector(int d) {
+        this.components = new float[d];
+        this.nextEmpty = 0;
+    }
 
-    T magnitude();
+    /**
+     * Set label of vector.
+     *
+     * @param str the label of the vector.
+     * @return the updated vector.
+     */
+    public Vector setLabel(String str) {
+        this.label = str;
+        return this;
+    }
 
-    Vector<T> normalize();
+    /**
+     * Get label of vector.
+     *
+     * @return the label of the vector as string.
+     */
+    public String getLabel() {
+        if (label == null)
+            return "noLabel";
+        // if (label == null) throw new IllegalArgumentException("Label is null");
+        return label;
+    }
 
-    Vector<T> multiply(T value);
+    /**
+     * Returns the number of dimensions of the vector.
+     *
+     * @return the number of dimensions.
+     */
+    public int getDimensions() {
+        return components.length;
+    }
 
-    Vector<T> divide(T value);
+    /**
+     * Populates the vector with random values sampled from a Gaussian distribution.
+     *
+     * @return the updated vector with random Gaussian values.
+     */
+    public Vector randomGaussian() {
+        Random random = new Random();
+        for (int c = 0; c < components.length; c++) {
+            this.components[c] = (float) random.nextGaussian();
+        }
+        this.nextEmpty = components.length;
+        return this;
+    }
 
-    Vector<T> setMagnitude(T value);
+    /**
+     * Assigns a value to the next empty component.
+     *
+     */
+    public void setNext(Float value) {
+        if (nextEmpty >= getDimensions()) {
+            System.out.println("error: " + value);
+        }
+        components[nextEmpty] = value;
+        nextEmpty += 1;
+    }
 
-    Vector<T> clone();
+    /**
+     * Returns the components of the vector.
+     *
+     * @return the array of vector components.
+     */
+    public float[] get() {
+        return components;
+    }
 
-    Vector<T> clear();
+    /**
+     * Retrieves a specific component of the vector.
+     *
+     * @param c the index of the component to retrieve.
+     * @return the value of the specified component.
+     */
+    public Float getC(int c) {
+        return components[c];
+    }
 
-    T dot(Vector<T> v);
+    /**
+     * Computes the magnitude (Euclidean norm) of the vector.
+     *
+     * @return the magnitude of the vector.
+     */
+    public Float magnitude() {
+        float mag = 0.0f;
+        for (float c : components) {
+            mag += c * c;
+        }
+        return (float) Math.sqrt(mag);
+    }
 
-    String toString();
+    /**
+     * Normalizes the vector to unit length.
+     *
+     * @return the normalized vector.
+     */
+    public Vector normalize() {
+        float mag = this.magnitude();
+        return this.divide(mag);
+    }
+
+    /**
+     * Copies the components of another vector into this vector.
+     *
+     * @param v the vector to copy from.
+     * @return the updated vector.
+     */
+    public Vector set(Vector v) {
+        for (int c = 0; c < components.length; c++) {
+            this.components[c] = v.get()[c];
+        }
+        return this;
+    }
+
+    /**
+     * Sets the magnitude of the vector to a specified length while maintaining
+     * direction.
+     *
+     * @param len the desired magnitude.
+     * @return the updated vector.
+     */
+    public Vector setMagnitude(Float len) {
+        this.normalize();
+        this.multiply(len);
+        return this;
+    }
+
+    /**
+     * Divides each component of the vector by a scalar.
+     *
+     * @param n the scalar value to divide by.
+     * @return the updated vector.
+     */
+    public Vector divide(Float n) {
+        for (int c = 0; c < components.length; c++) {
+            this.components[c] /= n;
+        }
+        return this;
+    }
+
+    /**
+     * Multiplies each component of the vector by a scalar.
+     *
+     * @param n the scalar value to multiply by.
+     * @return the updated vector.
+     */
+    public Vector multiply(Float n) {
+        for (int c = 0; c < components.length; c++) {
+            this.components[c] *= n;
+        }
+        return this;
+    }
+
+    /**
+     * Computes the dot product of this vector with another vector.
+     *
+     * @param v the other vector to compute the dot product with.
+     * @return the dot product value.
+     * @throws IllegalArgumentException if the vectors do not have the same
+     *                                  dimension.
+     */
+    public Float dot(Vector v) {
+        if (this.getDimensions() != v.getDimensions()) {
+            throw new IllegalArgumentException("Vectors must have the same dimension for dot product");
+        }
+        float product = 0.0f;
+        for (int c = 0; c < components.length; c++) {
+            product += this.components[c] * v.getC(c);
+        }
+        return product;
+    }
+
+    /**
+     * Computes the Euclidean distance between this vector and another vector.
+     *
+     * @param v the other vector to compute the distance to.
+     * @return the Euclidean distance between the two vectors.
+     * @throws IllegalArgumentException if the vectors do not have the same
+     *                                  dimension.
+     */
+    public float distance(Vector v) {
+        if (this.getDimensions() != v.getDimensions()) {
+            throw new IllegalArgumentException(
+                    "Vectors must have the same dimension for Euclidean distance calculation");
+        }
+
+        double sum = 0.0;
+        for (int c = 0; c < components.length; c++) {
+            double diff = components[c] - v.getC(c);
+            sum += diff * diff;
+        }
+
+        return (float) Math.sqrt(sum);
+    }
+
+    /**
+     * Returns a clone of this vector.
+     *
+     * @return a copy of the vector with identical components.
+     */
+    public Vector clone() {
+        return new Vector(components);
+    }
+
+    /**
+     * Returns a clone of this vector.
+     *
+     * @return the updated vector.
+     */
+    public Vector clear() {
+        components = new float[components.length];
+        nextEmpty = 0;
+        return this;
+    }
+
+    // @Override
+    // public int hashCode() {
+    //     return label != null ? label.hashCode() : 0;
+    // }
+
+    // @Override
+    // public boolean equals(Object obj) {
+    //     if (this == obj)
+    //         return true; // Same object reference
+    //     if (obj == null || getClass() != obj.getClass())
+    //         return false; // Ensure type match
+
+    //     Vector vector = (Vector) obj;
+    //     return label != null ? label.equals(vector.label) : vector.label == null;
+    // }
+
+    /**
+     * Returns a string representation of the vector.
+     *
+     * @return a string containing the vector components.
+     */
+    public String toString() {
+        String s = getLabel() + ": ";
+        s += components[0];
+        for (int i = 1; i < components.length; i++) {
+            s += ", " + components[i];
+        }
+        return s;
+    }
+
+    /**
+     * Prints the vector to the standard output.
+     */
+    public void print() {
+        System.out.println(toString());
+    }
 }

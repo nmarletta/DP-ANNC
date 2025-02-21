@@ -1,124 +1,122 @@
 package dpannc;
 
 import java.util.*;
+import java.io.BufferedReader;
+import java.io.FileReader;
+import java.io.IOException;
 
-public class DPANNC {
-    static int n = 1000;
-    static double sensitivity = 1;
-    static double epsilon = 0.5;
-    static double delta = 0.2;
+public abstract class DPANNC {
+    int n;
+    int d;
+
+    float sensitivity;
+    float epsilon;
+    float delta;
+
+    LinkedHashMap<String, Bucket> buckets;
     
-    static int T; // log2(n);
-    static double c = 1;
-    static double lambda = (2 * Math.sqrt(2 * c)) / (c * c + 1);
-    static double r = 1 / Math.pow(log(n, 10), 1.0 / 8.0);
-    static double K = Math.sqrt(ln(n));
-    static double alpha = 1 - ((r * r) / 2); // cosine
-    static double beta = Math.sqrt(1 - (alpha * alpha)); // sine
-    static double adjSen = 2;
-    static double threshold = (adjSen / epsilon) * ln(1 + (Math.exp(epsilon / 2) - 1) / delta);
-    static double etaU = Math.sqrt((ln(n) / K)) * (lambda / r);
-    static double etaQ = alpha * etaU - 2 * beta * Math.sqrt(ln(K));
-    int remainder = 0;
-    Node root;
+    int nodeCount, leafs;
 
-    public DPANNC(int d) {
-        T = d;
-        printSettings();
+    public DPANNC(float sensitivity, float epsilon, float delta) {
+        this.sensitivity = sensitivity;
+        this.epsilon = epsilon;
+        this.delta = delta;     
+
+        buckets = new LinkedHashMap<>();
+
+        nodeCount = 0;
+        leafs = 0;
     }
 
-    public int query(Vector q, double etaQ) {
-        return root.query(q);
+    public abstract void insert(Vector v);
+
+    public abstract List<Bucket> query(Vector q);
+
+    public abstract int remainder();
+
+    public int leafs() {
+        return leafs;
     }
 
-    private class Node<T extends Number> {
-        int level, count;
-        Vector g;
-        LinkedList<Node> childNodes;
+    public int nodes() {
+        return nodeCount;
+    }
 
-        public Node(int level) {
+    public void populate(int n, int d, String filePath) throws Exception {
+        if (n < 1) throw new Exception("Invalid n");
+        if (d < 2) throw new Exception("Invalid d");
+
+        this.n = n;
+        this.d = d;
+
+        try (BufferedReader reader = new BufferedReader(new FileReader(filePath))) {
+            
+            String line;
+            int counter = 0;
+            while ((line = reader.readLine()) != null && counter < n) {
+                String[] parts = line.split(" ");
+                if (parts.length < d + 1)
+                    return;
+
+                String word = parts[0];
+                Vector vector = new Vector(d);
+                for (int i = 1; i <= d; i++) {
+                    vector.setNext(Float.parseFloat(parts[i]));
+                }
+                vector.normalize().setLabel(word);
+                insert(vector);
+                printProgress(counter, n, 10);
+                counter++;
+            }
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+
+        System.out.println("Processing complete.");
+    }
+
+    // public int size() {
+    //     return counter.size();
+    // }
+
+    private void printProgress(int c, int n, int step) {
+        double progress = (double) c / n * 100;
+        double margin = 1e-9;
+        if (Math.abs(progress % step) < margin) {
+            System.out.println((int) progress + "% completed");
+        }
+    }
+
+    public void printBuckets() {
+        int i = 0;
+        for (String key : buckets.keySet()) {
+            List<Vector> vectors = buckets.get(key).getContent();
+            System.out.println("bucket-" + i + " (" + vectors.size() + "): ");
+            String b = "";
+            for (Vector v : vectors) {
+                b += "[" + v.getLabel() + "] ";
+            }
+            System.out.println(b);
+            i++;
+        }
+    }
+
+    public abstract double getC();
+    public abstract double getR();
+
+    public abstract class Node {
+        protected int level, count;
+        protected Node parent;
+        
+
+        public Node(int level, Node parent) {
             this.level = level;
-            count = 0;
-            g = new FloatVector(T).randomGaussian().normalize();
-            childNodes = new LinkedList<>();
+            this.count = 0;
+            this.parent = parent;
+            
         }
-
-        public void insertPoint(Vector v, double etaU) {
-            if (level >= K) {
-                count++;
-            } else {
-                if (!sendToChildNode(v, etaU)) {
-                    remainder++;
-                }
-            }
+        public Node getParent() {
+            return parent;
         }
-
-        private boolean sendToChildNode(Vector v, double etaU) {
-            for (Node n : childNodes) {
-                if (n.accepts(v, etaU)) {
-                    n.insertPoint(v, etaU);
-                    return true;
-                }
-            }
-            while (childNodes.size() < T) {
-                Node n = new Node(level + 1);
-                if (n.accepts(v, etaU)) {
-                    childNodes.add(n);
-                    n.insertPoint(v, etaU);
-                    return true;
-                }
-            }
-            return false;
-        }
-
-        public int query(Vector q) {
-            if (level >= K) {
-                return count;
-            } else {
-                int total = 0;
-                for (Node n : childNodes) {
-                    if (n.accepts(q, etaQ)) {
-                        total += n.query(q);
-                    }
-                }
-                return total;
-            }
-        }
-
-        public void addNoise() {
-            if (level >= K) {
-                count += TLap.generate(sensitivity, epsilon / adjSen, delta / adjSen);
-                if (count <= threshold) {
-                    count = 0;
-                }
-            } else {
-                for (Node n : childNodes) {
-                    n.addNoise();
-                }
-            }
-        }
-
-        private boolean accepts(Vector<T> v, double etaU) {
-            return g.dot(v).floatValue() >= etaU;
-        }
-    }
-
-    public static double log(double N, int base) {
-        return Math.log(N) / Math.log(base);
-    }
-    public static double ln(double N) {
-        return Math.log(N);
-    }
-
-    public static void printSettings() {
-        System.out.println("c: " + c);
-        System.out.println("lambda: " + lambda);
-        System.out.println("r: " + r);
-        System.out.println("K: " + K);
-        System.out.println("alpha: " + alpha);
-        System.out.println("beta: " + beta);
-        System.out.println("threshold: " + threshold);
-        System.out.println("etaU: " + etaU);
-        System.out.println("etaQ: " + etaQ);
     }
 }
