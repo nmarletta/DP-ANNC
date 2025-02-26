@@ -263,10 +263,9 @@ public class Vector {
      * @return a string containing the vector components.
      */
     public String toString() {
-        String s = getLabel() + ": ";
-        s += components[0];
-        for (int i = 1; i < components.length; i++) {
-            s += ", " + components[i];
+        String s = getLabel();
+        for (int i = 0; i < components.length; i++) {
+            s += " " + components[i];
         }
         return s;
     }
@@ -276,5 +275,20 @@ public class Vector {
      */
     public void print() {
         System.out.println(toString());
+    }
+
+    /**
+     * Returns a Vector parsed from String.
+     *
+     * @return a Vector object with the .
+     */
+    public static Vector fromString(String str) {
+        String[] split = str.split(" ");
+        String label = split[0];
+        float[] components = new float[split.length-1];
+        for (int i = 0; i < components.length; i++) {
+            components[i] = Float.parseFloat(split[i+1]);
+        }
+        return new Vector(components).setLabel(label);
     }
 }
